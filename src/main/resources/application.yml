@@ -1,0 +1,12 @@
+nsp_source_url: https://www.vtb.ru/nsp.xml
+nsp_source_file: D:\Innoteh\bankomat-search\src\main\resources\nsp.xml
+spring:
+  application:
+    name: bankomat-search-api
+  datasource:
+    url: jdbc:postgresql://localhost:65432/ibs_db
+    username: innoteh
+    password: 12345678
+    driver-class-name: org.postgresql.Driver
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml

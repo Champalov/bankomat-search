@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.innotehnum.bankomatsearch.repository.DataMapper">
+
+    <resultMap id="CompanyResultMap" type="com.innotehnum.bankomatsearch.domain.Company">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="company_id" property="companyId" jdbcType="VARCHAR"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="country" property="country" jdbcType="VARCHAR"/>
+        <result column="address" property="address" jdbcType="VARCHAR"/>
+        <result column="address_add" property="addressAdd" jdbcType="VARCHAR"/>
+        <result column="working_time" property="workingTime" jdbcType="VARCHAR"/>
+        <result column="url" property="url" jdbcType="VARCHAR"/>
+        <result column="rubric_id" property="rubricId" jdbcType="VARCHAR"/>
+        <result column="actualization_date" property="actualizationDate" jdbcType="VARCHAR"/>
+        <result column="time_added" property="timeAdded" jdbcType="TIMESTAMP"/>
+        <result column="distance" property="distance" jdbcType="FLOAT"/>
+        <association property="coordinates" column="id" select="selectCoordinates"/>
+    </resultMap>
+
+    <resultMap id="CoordinatesResultMap" type="com.innotehnum.bankomatsearch.domain.Coordinates">
+        <result column="coordinates_lat" property="lat" jdbcType="FLOAT"/>
+        <result column="coordinates_lon" property="lon" jdbcType="FLOAT"/>
+    </resultMap>
+
+    <sql id="CompanyColumns">
+        company_id, "name", country, address, address_add, working_time, coordinates_lat, coordinates_lon, url, rubric_id, actualization_date, time_added
+    </sql>
+
+    <select id="countByFilter" parameterType="com.innotehnum.bankomatsearch.domain.searchParams.DataSearchParams" resultType="Long">
+        select count(id) from company c
+        <include refid="whereClause"/>
+    </select>
+
+    <select id="selectByFilter" parameterType="com.innotehnum.bankomatsearch.domain.searchParams.DataSearchParams" resultMap="CompanyResultMap">
+        <include refid="selectClause"/>
+        <include refid="whereClause"/>
+        <include refid="orderClause"/>
+    </select>
+
+    <sql id="selectClause">
+        select c.*
+        <if test="searchParams.filters.coordinates != null and searchParams.filters.coordinates.lat != null and searchParams.filters.coordinates.lon != null and searchParams.filters.radius != null">
+            , round((acos(sin(radians(#{searchParams.filters.coordinates.lat})) * sin(radians(c.coordinates_lat)) + cos(radians(#{searchParams.filters.coordinates.lat})) * cos(radians(c.coordinates_lat)) * cos(radians(#{searchParams.filters.coordinates.lon}) - radians(c.coordinates_lon))) * 6378137)::numeric, 0) distance
+        </if>
+        from company c
+    </sql>
+
+    <sql id="whereClause">
+        <if test="searchParams.filters != null">
+            <where>
+                <if test="searchParams.filters.coordinates != null and searchParams.filters.coordinates.lat != null and searchParams.filters.coordinates.lon != null and searchParams.filters.radius != null">
+                    and #{searchParams.filters.radius} >= round((acos(sin(radians(#{searchParams.filters.coordinates.lat})) * sin(radians(c.coordinates_lat)) + cos(radians(#{searchParams.filters.coordinates.lat})) * cos(radians(c.coordinates_lat)) * cos(radians(#{searchParams.filters.coordinates.lon}) - radians(c.coordinates_lon))) * 6378137)::numeric, 0)
+                </if>
+                <if test="searchParams.filters.name != null">
+                    and c.name ilike '%' || #{searchParams.filters.name} || '%'
+                </if>
+                <if test="searchParams.filters.address != null">
+                    and c.country || ' ' || c.address || ' ' || c.address_add ilike '%' || #{searchParams.filters.address} || '%'
+                </if>
+                <if test="searchParams.filters.workingTime != null">
+                    and c.working_time ilike '%' || #{searchParams.filters.workingTime} || '%'
+                </if>
+                <if test="searchParams.filters.url != null">
+                    and c.url ilike '%' || #{searchParams.filters.url} || '%'
+                </if>
+                <if test="searchParams.filters.rubricId != null">
+                    and c.rubric_id ilike '%' || #{searchParams.filters.rubricId} || '%'
+                </if>
+                <if test="searchParams.filters.companyId != null">
+                    and c.company_id ilike '%' || #{searchParams.filters.companyId} || '%'
+                </if>
+            </where>
+        </if>
+    </sql>
+
+    <sql id="orderClause">
+        <choose>
+            <when test="searchParams.sortBy != null">
+                order by #{searchParams.sortBy} <if test="searchParams.sortDesc = 'true'">desc</if>
+            </when>
+            <when test="searchParams.filters.coordinates != null and searchParams.filters.coordinates.lat != null and searchParams.filters.coordinates.lon != null and searchParams.filters.radius != null">
+                order by distance
+            </when>
+            <otherwise>
+                order by c.name
+            </otherwise>
+        </choose>
+    </sql>
+
+    <select id="selectCoordinates" parameterType="Long" resultMap="CoordinatesResultMap">
+        select coordinates_lat, coordinates_lon from company where id = #{id}
+    </select>
+
+    <select id="selectAll" parameterType="Long" resultMap="CompanyResultMap">
+        SELECT *
+        FROM company
+    </select>
+
+    <insert id="insertList" parameterType="com.innotehnum.bankomatsearch.domain.Company"
+            useGeneratedKeys="true" keyColumn="id" keyProperty="id">
+        INSERT INTO company (<include refid="CompanyColumns"/>)
+        VALUES
+        <foreach collection="list" item="it" index="index" separator=",">
+            (#{it.companyId}, #{it.name}, #{it.country}, #{it.address}, #{it.addressAdd}, #{it.workingTime}, #{it.coordinates.lat}, #{it.coordinates.lon}, #{it.url}, #{it.rubricId}, #{it.actualizationDate}, CURRENT_TIMESTAMP)
+        </foreach>
+    </insert>
+
+    <insert id="insert" parameterType="com.innotehnum.bankomatsearch.domain.Company"
+            useGeneratedKeys="true" keyColumn="id" keyProperty="id">
+        INSERT INTO company (<include refid="CompanyColumns"/>)
+        VALUES (#{companyId}, #{name}, #{country}, #{address}, #{addressAdd}, #{workingTime}, #{coordinates.lat}, #{coordinates.lon}, #{url}, #{rubricId}, #{actualizationDate}, CURRENT_TIMESTAMP)
+    </insert>
+
+    <delete id="deleteAll">
+        DELETE FROM company
+    </delete>
+
+</mapper>
